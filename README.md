@@ -72,6 +72,12 @@ docker compose down -v         # remove containers AND the Postgres data volume 
 ## Layout
 
 - `src/rbaa/` - the application (`rbaa.main:app` is the FastAPI object)
+- `roles/` - the role files that define the meeting agents (Product Manager, Senior Software
+  Engineer, QA Engineer). One `.md` file per role; adding a role means adding a file, not code.
+  The file format is documented in the docstring of `src/rbaa/roles/__init__.py`. Every `.md` file
+  in this directory is loaded as a role, so do not put a `README.md` or notes there.
+- `_docs/team/` - the role files for the people and AI agents who develop this repo (PM, engineer,
+  QA). These are not the meeting agents in `roles/`.
 - `tests/` - tests
 - `Dockerfile`, `docker-compose.yml`, `.env.example` - local stack
 - `uv.lock` - locked dependencies; the image installs from it with `uv sync --frozen`
