@@ -76,6 +76,11 @@ docker compose down -v         # remove containers AND the Postgres data volume 
   Engineer, QA Engineer). One `.md` file per role; adding a role means adding a file, not code.
   The file format is documented in the docstring of `src/rbaa/roles/__init__.py`. Every `.md` file
   in this directory is loaded as a role, so do not put a `README.md` or notes there.
+- `agents/` - agent instance files: each binds one role (from `roles/`) to one set of external
+  identities and credential references (a GitHub/Jira username and the *names* of the environment
+  variables holding their tokens, never the tokens themselves). One `.yaml` file per agent
+  instance; `agents/example.yaml` documents every field. The file format is documented in the
+  docstring of `src/rbaa/agents/__init__.py`.
 - `_docs/team/` - the role files for the people and AI agents who develop this repo (PM, engineer,
   QA). These are not the meeting agents in `roles/`.
 - `tests/` - tests

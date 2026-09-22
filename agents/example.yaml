@@ -1,0 +1,32 @@
+# Example agent instance. Copy this file, rename it and edit the fields below for a real agent.
+# See src/rbaa/agents/__init__.py for the full field rules.
+
+# agent_id: unique identifier for this agent, matching ^[a-z][a-z0-9_-]{0,63}$
+agent_id: example_pm
+
+# role: the `name` of a role file in roles/ (see src/rbaa/roles/__init__.py)
+role: product_manager
+
+# display_name: what humans call this agent in the meeting
+display_name: Example PM
+
+# github_username: the (obviously fake) GitHub account this agent acts as
+github_username: example-pm-bot
+
+# jira_account_id: the (obviously fake) Jira account id this agent acts as
+jira_account_id: example-jira-account-id
+
+# github_token_env: name of the environment variable holding this agent's GitHub token.
+# The token value itself is never written here, only the name of the variable that holds it.
+github_token_env: EXAMPLE_GITHUB_TOKEN
+
+# jira_token_env: name of the environment variable holding this agent's Jira token.
+jira_token_env: EXAMPLE_JIRA_TOKEN
+
+# allowed_repos: GitHub repositories this agent may access, as "owner/name". [] means none.
+allowed_repos:
+  - example-org/example-repo
+
+# allowed_jira_projects: Jira project keys this agent may access. [] means none.
+allowed_jira_projects:
+  - EXAMPLE
