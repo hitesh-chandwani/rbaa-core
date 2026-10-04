@@ -1,0 +1,25 @@
+{
+  "status": 200,
+  "headers": {"content-type": "application/json"},
+  "body": {
+    "startAt": 0,
+    "maxResults": 100,
+    "total": 1,
+    "issues": [
+      {
+        "key": "PROJ-1",
+        "fields": {
+          "summary": "Fix the widget renderer",
+          "status": {
+            "name": "In Progress",
+            "statusCategory": {"key": "indeterminate", "name": "In Progress"}
+          },
+          "updated": "2024-02-01T10:00:00.000+0000",
+          "labels": [],
+          "issuelinks": []
+        },
+        "changelog": {"histories": []}
+      }
+    ]
+  }
+}

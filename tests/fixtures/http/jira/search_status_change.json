@@ -1,0 +1,40 @@
+{
+  "status": 200,
+  "headers": {"content-type": "application/json"},
+  "body": {
+    "startAt": 0,
+    "maxResults": 100,
+    "total": 1,
+    "issues": [
+      {
+        "key": "PROJ-2",
+        "fields": {
+          "summary": "Still being worked on",
+          "status": {
+            "name": "In Progress",
+            "statusCategory": {"key": "indeterminate", "name": "In Progress"}
+          },
+          "updated": "2024-02-06T09:30:00.000+0000",
+          "labels": [],
+          "issuelinks": []
+        },
+        "changelog": {
+          "histories": [
+            {
+              "created": "2023-12-15T08:00:00.000+0000",
+              "items": [
+                {"field": "status", "fromString": "Backlog", "toString": "To Do"}
+              ]
+            },
+            {
+              "created": "2024-02-05T12:00:00.000+0000",
+              "items": [
+                {"field": "status", "fromString": "To Do", "toString": "In Progress"}
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

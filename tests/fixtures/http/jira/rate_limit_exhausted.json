@@ -1,0 +1,5 @@
+{
+  "status": 429,
+  "headers": {"retry-after": "300"},
+  "body": {"errorMessages": ["Rate limit exceeded"], "errors": {}}
+}

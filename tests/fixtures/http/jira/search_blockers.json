@@ -1,0 +1,79 @@
+{
+  "status": 200,
+  "headers": {"content-type": "application/json"},
+  "body": {
+    "startAt": 0,
+    "maxResults": 100,
+    "total": 3,
+    "issues": [
+      {
+        "key": "PROJ-4",
+        "fields": {
+          "summary": "Blocked by label only",
+          "status": {
+            "name": "To Do",
+            "statusCategory": {"key": "new", "name": "To Do"}
+          },
+          "updated": "2024-02-08T09:00:00.000+0000",
+          "labels": ["blocked"],
+          "issuelinks": []
+        },
+        "changelog": {"histories": []}
+      },
+      {
+        "key": "PROJ-5",
+        "fields": {
+          "summary": "Blocked by an unresolved issuelink",
+          "status": {
+            "name": "To Do",
+            "statusCategory": {"key": "new", "name": "To Do"}
+          },
+          "updated": "2024-02-08T09:05:00.000+0000",
+          "labels": [],
+          "issuelinks": [
+            {
+              "type": {"inward": "is blocked by", "outward": "blocks"},
+              "inwardIssue": {
+                "key": "PROJ-99",
+                "fields": {
+                  "status": {
+                    "name": "In Progress",
+                    "statusCategory": {"key": "indeterminate", "name": "In Progress"}
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "changelog": {"histories": []}
+      },
+      {
+        "key": "PROJ-6",
+        "fields": {
+          "summary": "Link is resolved, so not blocked",
+          "status": {
+            "name": "To Do",
+            "statusCategory": {"key": "new", "name": "To Do"}
+          },
+          "updated": "2024-02-08T09:10:00.000+0000",
+          "labels": [],
+          "issuelinks": [
+            {
+              "type": {"inward": "is blocked by", "outward": "blocks"},
+              "inwardIssue": {
+                "key": "PROJ-98",
+                "fields": {
+                  "status": {
+                    "name": "Done",
+                    "statusCategory": {"key": "done", "name": "Done"}
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "changelog": {"histories": []}
+      }
+    ]
+  }
+}

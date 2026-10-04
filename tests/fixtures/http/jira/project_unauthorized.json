@@ -1,0 +1,5 @@
+{
+  "status": 401,
+  "headers": {"content-type": "application/json"},
+  "body": {"errorMessages": ["You are not authenticated. Authentication required to perform this operation."], "errors": {}}
+}

@@ -1,0 +1,393 @@
+{
+  "status": 200,
+  "headers": {
+    "content-type": "application/json"
+  },
+  "body": {
+    "startAt": 100,
+    "maxResults": 100,
+    "total": 120,
+    "issues": [
+      {
+        "key": "PAGE-100",
+        "fields": {
+          "summary": "Paginated ticket 100",
+          "status": {
+            "name": "To Do",
+            "statusCategory": {
+              "key": "new",
+              "name": "To Do"
+            }
+          },
+          "updated": "2024-02-09T00:00:00.000+0000",
+          "labels": [],
+          "issuelinks": []
+        },
+        "changelog": {
+          "histories": []
+        }
+      },
+      {
+        "key": "PAGE-101",
+        "fields": {
+          "summary": "Paginated ticket 101",
+          "status": {
+            "name": "To Do",
+            "statusCategory": {
+              "key": "new",
+              "name": "To Do"
+            }
+          },
+          "updated": "2024-02-09T00:00:00.000+0000",
+          "labels": [],
+          "issuelinks": []
+        },
+        "changelog": {
+          "histories": []
+        }
+      },
+      {
+        "key": "PAGE-102",
+        "fields": {
+          "summary": "Paginated ticket 102",
+          "status": {
+            "name": "To Do",
+            "statusCategory": {
+              "key": "new",
+              "name": "To Do"
+            }
+          },
+          "updated": "2024-02-09T00:00:00.000+0000",
+          "labels": [],
+          "issuelinks": []
+        },
+        "changelog": {
+          "histories": []
+        }
+      },
+      {
+        "key": "PAGE-103",
+        "fields": {
+          "summary": "Paginated ticket 103",
+          "status": {
+            "name": "To Do",
+            "statusCategory": {
+              "key": "new",
+              "name": "To Do"
+            }
+          },
+          "updated": "2024-02-09T00:00:00.000+0000",
+          "labels": [],
+          "issuelinks": []
+        },
+        "changelog": {
+          "histories": []
+        }
+      },
+      {
+        "key": "PAGE-104",
+        "fields": {
+          "summary": "Paginated ticket 104",
+          "status": {
+            "name": "To Do",
+            "statusCategory": {
+              "key": "new",
+              "name": "To Do"
+            }
+          },
+          "updated": "2024-02-09T00:00:00.000+0000",
+          "labels": [],
+          "issuelinks": []
+        },
+        "changelog": {
+          "histories": []
+        }
+      },
+      {
+        "key": "PAGE-105",
+        "fields": {
+          "summary": "Paginated ticket 105",
+          "status": {
+            "name": "To Do",
+            "statusCategory": {
+              "key": "new",
+              "name": "To Do"
+            }
+          },
+          "updated": "2024-02-09T00:00:00.000+0000",
+          "labels": [],
+          "issuelinks": []
+        },
+        "changelog": {
+          "histories": []
+        }
+      },
+      {
+        "key": "PAGE-106",
+        "fields": {
+          "summary": "Paginated ticket 106",
+          "status": {
+            "name": "To Do",
+            "statusCategory": {
+              "key": "new",
+              "name": "To Do"
+            }
+          },
+          "updated": "2024-02-09T00:00:00.000+0000",
+          "labels": [],
+          "issuelinks": []
+        },
+        "changelog": {
+          "histories": []
+        }
+      },
+      {
+        "key": "PAGE-107",
+        "fields": {
+          "summary": "Paginated ticket 107",
+          "status": {
+            "name": "To Do",
+            "statusCategory": {
+              "key": "new",
+              "name": "To Do"
+            }
+          },
+          "updated": "2024-02-09T00:00:00.000+0000",
+          "labels": [],
+          "issuelinks": []
+        },
+        "changelog": {
+          "histories": []
+        }
+      },
+      {
+        "key": "PAGE-108",
+        "fields": {
+          "summary": "Paginated ticket 108",
+          "status": {
+            "name": "To Do",
+            "statusCategory": {
+              "key": "new",
+              "name": "To Do"
+            }
+          },
+          "updated": "2024-02-09T00:00:00.000+0000",
+          "labels": [],
+          "issuelinks": []
+        },
+        "changelog": {
+          "histories": []
+        }
+      },
+      {
+        "key": "PAGE-109",
+        "fields": {
+          "summary": "Paginated ticket 109",
+          "status": {
+            "name": "To Do",
+            "statusCategory": {
+              "key": "new",
+              "name": "To Do"
+            }
+          },
+          "updated": "2024-02-09T00:00:00.000+0000",
+          "labels": [],
+          "issuelinks": []
+        },
+        "changelog": {
+          "histories": []
+        }
+      },
+      {
+        "key": "PAGE-110",
+        "fields": {
+          "summary": "Paginated ticket 110",
+          "status": {
+            "name": "To Do",
+            "statusCategory": {
+              "key": "new",
+              "name": "To Do"
+            }
+          },
+          "updated": "2024-02-09T00:00:00.000+0000",
+          "labels": [],
+          "issuelinks": []
+        },
+        "changelog": {
+          "histories": []
+        }
+      },
+      {
+        "key": "PAGE-111",
+        "fields": {
+          "summary": "Paginated ticket 111",
+          "status": {
+            "name": "To Do",
+            "statusCategory": {
+              "key": "new",
+              "name": "To Do"
+            }
+          },
+          "updated": "2024-02-09T00:00:00.000+0000",
+          "labels": [],
+          "issuelinks": []
+        },
+        "changelog": {
+          "histories": []
+        }
+      },
+      {
+        "key": "PAGE-112",
+        "fields": {
+          "summary": "Paginated ticket 112",
+          "status": {
+            "name": "To Do",
+            "statusCategory": {
+              "key": "new",
+              "name": "To Do"
+            }
+          },
+          "updated": "2024-02-09T00:00:00.000+0000",
+          "labels": [],
+          "issuelinks": []
+        },
+        "changelog": {
+          "histories": []
+        }
+      },
+      {
+        "key": "PAGE-113",
+        "fields": {
+          "summary": "Paginated ticket 113",
+          "status": {
+            "name": "To Do",
+            "statusCategory": {
+              "key": "new",
+              "name": "To Do"
+            }
+          },
+          "updated": "2024-02-09T00:00:00.000+0000",
+          "labels": [],
+          "issuelinks": []
+        },
+        "changelog": {
+          "histories": []
+        }
+      },
+      {
+        "key": "PAGE-114",
+        "fields": {
+          "summary": "Paginated ticket 114",
+          "status": {
+            "name": "To Do",
+            "statusCategory": {
+              "key": "new",
+              "name": "To Do"
+            }
+          },
+          "updated": "2024-02-09T00:00:00.000+0000",
+          "labels": [],
+          "issuelinks": []
+        },
+        "changelog": {
+          "histories": []
+        }
+      },
+      {
+        "key": "PAGE-115",
+        "fields": {
+          "summary": "Paginated ticket 115",
+          "status": {
+            "name": "To Do",
+            "statusCategory": {
+              "key": "new",
+              "name": "To Do"
+            }
+          },
+          "updated": "2024-02-09T00:00:00.000+0000",
+          "labels": [],
+          "issuelinks": []
+        },
+        "changelog": {
+          "histories": []
+        }
+      },
+      {
+        "key": "PAGE-116",
+        "fields": {
+          "summary": "Paginated ticket 116",
+          "status": {
+            "name": "To Do",
+            "statusCategory": {
+              "key": "new",
+              "name": "To Do"
+            }
+          },
+          "updated": "2024-02-09T00:00:00.000+0000",
+          "labels": [],
+          "issuelinks": []
+        },
+        "changelog": {
+          "histories": []
+        }
+      },
+      {
+        "key": "PAGE-117",
+        "fields": {
+          "summary": "Paginated ticket 117",
+          "status": {
+            "name": "To Do",
+            "statusCategory": {
+              "key": "new",
+              "name": "To Do"
+            }
+          },
+          "updated": "2024-02-09T00:00:00.000+0000",
+          "labels": [],
+          "issuelinks": []
+        },
+        "changelog": {
+          "histories": []
+        }
+      },
+      {
+        "key": "PAGE-118",
+        "fields": {
+          "summary": "Paginated ticket 118",
+          "status": {
+            "name": "To Do",
+            "statusCategory": {
+              "key": "new",
+              "name": "To Do"
+            }
+          },
+          "updated": "2024-02-09T00:00:00.000+0000",
+          "labels": [],
+          "issuelinks": []
+        },
+        "changelog": {
+          "histories": []
+        }
+      },
+      {
+        "key": "PAGE-119",
+        "fields": {
+          "summary": "Paginated ticket 119",
+          "status": {
+            "name": "To Do",
+            "statusCategory": {
+              "key": "new",
+              "name": "To Do"
+            }
+          },
+          "updated": "2024-02-09T00:00:00.000+0000",
+          "labels": [],
+          "issuelinks": []
+        },
+        "changelog": {
+          "histories": []
+        }
+      }
+    ]
+  }
+}
