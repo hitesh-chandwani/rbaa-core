@@ -202,7 +202,7 @@ async def test_search_queries_use_documented_q_syntax():
     assert search_qs == {
         "repo:acme/ok type:pr author:octobot is:merged",
         "repo:acme/ok type:pr author:octobot is:open",
-        "repo:acme/ok review-requested:octobot is:open",
+        "repo:acme/ok type:pr review-requested:octobot is:open",
     }
 
 

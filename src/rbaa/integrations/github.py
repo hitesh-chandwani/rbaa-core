@@ -21,7 +21,7 @@ Endpoints (GitHub REST API v3)
 - Merged PRs / open PRs / review requests: `GET /search/issues` with, respectively,
   `q=repo:{owner}/{repo} type:pr author:{github_username} is:merged`,
   `q=repo:{owner}/{repo} type:pr author:{github_username} is:open`, and
-  `q=repo:{owner}/{repo} review-requested:{github_username} is:open`, each with
+  `q=repo:{owner}/{repo} type:pr review-requested:{github_username} is:open`, each with
   `per_page=100&page={n}`. The search API has no reliable server-side `since`, so results are
   filtered client-side to `updated_at >= since`.
 
@@ -365,7 +365,13 @@ async def _fetch_repo_activity(
         client, owner, name, f"type:pr author:{username} is:open", since, headers, max_retries
     )
     review_requests = await _search_pull_requests(
-        client, owner, name, f"review-requested:{username} is:open", since, headers, max_retries
+        client,
+        owner,
+        name,
+        f"type:pr review-requested:{username} is:open",
+        since,
+        headers,
+        max_retries,
     )
     return commits, merged_prs, open_prs, review_requests
 
