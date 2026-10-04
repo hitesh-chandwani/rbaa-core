@@ -1,0 +1,16 @@
+{
+  "status": 200,
+  "headers": {},
+  "body": [
+    {
+      "sha": "aaaa0001",
+      "author": { "login": "octobot" },
+      "commit": {
+        "author": { "name": "Octo Bot", "email": "octobot@example.com", "date": "2024-02-01T10:00:00Z" },
+        "message": "Fix the widget renderer\n\nLonger explanation of the fix."
+      },
+      "html_url": "https://github.com/acme/ok/commit/aaaa0001",
+      "parents": [{ "sha": "zzzz0000" }]
+    }
+  ]
+}

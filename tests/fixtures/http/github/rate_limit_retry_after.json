@@ -1,0 +1,7 @@
+{
+  "status": 429,
+  "headers": { "Retry-After": "1" },
+  "body": {
+    "message": "You have exceeded a secondary rate limit. Please wait a few minutes before you try again."
+  }
+}

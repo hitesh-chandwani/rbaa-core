@@ -1,0 +1,17 @@
+{
+  "status": 200,
+  "headers": {},
+  "body": {
+    "total_count": 1,
+    "incomplete_results": false,
+    "items": [
+      {
+        "number": 42,
+        "title": "Merged fix for the widget renderer",
+        "html_url": "https://github.com/acme/ok/pull/42",
+        "updated_at": "2024-02-05T12:00:00Z",
+        "pull_request": { "merged_at": "2024-02-05T12:00:00Z" }
+      }
+    ]
+  }
+}

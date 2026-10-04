@@ -1,0 +1,17 @@
+{
+  "status": 200,
+  "headers": {},
+  "body": {
+    "total_count": 1,
+    "incomplete_results": false,
+    "items": [
+      {
+        "number": 44,
+        "title": "Please review this refactor",
+        "html_url": "https://github.com/acme/ok/pull/44",
+        "updated_at": "2024-02-07T15:45:00Z",
+        "pull_request": { "merged_at": null }
+      }
+    ]
+  }
+}

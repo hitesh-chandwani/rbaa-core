@@ -1,0 +1,7 @@
+{
+  "status": 403,
+  "headers": {},
+  "body": {
+    "message": "API rate limit exceeded for user ID 1."
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "status": 200,
+  "headers": {},
+  "body": [
+    {
+      "sha": "mix-normal",
+      "author": { "login": "octobot" },
+      "commit": {
+        "author": { "name": "Octo Bot", "email": "octobot@example.com", "date": "2024-02-01T10:00:00Z" },
+        "message": "A normal commit that should be included"
+      },
+      "html_url": "https://github.com/acme/mixed/commit/mix-normal",
+      "parents": [{ "sha": "parent-1" }]
+    },
+    {
+      "sha": "mix-merge",
+      "author": { "login": "octobot" },
+      "commit": {
+        "author": { "name": "Octo Bot", "email": "octobot@example.com", "date": "2024-02-02T10:00:00Z" },
+        "message": "Merge pull request #9 from acme/feature-branch"
+      },
+      "html_url": "https://github.com/acme/mixed/commit/mix-merge",
+      "parents": [{ "sha": "parent-1" }, { "sha": "parent-2" }]
+    },
+    {
+      "sha": "mix-foreign",
+      "author": { "login": "someone-else" },
+      "commit": {
+        "author": { "name": "Someone Else", "email": "someone@example.com", "date": "2024-02-03T10:00:00Z" },
+        "message": "A commit by a different author"
+      },
+      "html_url": "https://github.com/acme/mixed/commit/mix-foreign",
+      "parents": [{ "sha": "parent-1" }]
+    },
+    {
+      "sha": "mix-stale",
+      "author": { "login": "octobot" },
+      "commit": {
+        "author": { "name": "Octo Bot", "email": "octobot@example.com", "date": "2023-06-01T10:00:00Z" },
+        "message": "An old commit from before the since cutoff"
+      },
+      "html_url": "https://github.com/acme/mixed/commit/mix-stale",
+      "parents": [{ "sha": "parent-1" }]
+    }
+  ]
+}
