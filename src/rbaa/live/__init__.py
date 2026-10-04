@@ -37,6 +37,7 @@ engineer's issue comment.
 from __future__ import annotations
 
 import asyncio
+import base64
 import contextlib
 import json
 import logging
@@ -50,6 +51,17 @@ from google.genai import types
 from websockets.exceptions import ConnectionClosed
 
 logger = logging.getLogger(__name__)
+
+# The `websockets` library itself logs the full HTTP handshake request/response, headers
+# included, at DEBUG level -- and our `x-goog-api-key` header is one of those headers. An
+# embedding application configuring its root logger at DEBUG would otherwise leak the API key
+# through `websockets`'s own logger, bypassing every precaution this module takes with its own
+# `logger` above. Setting these two loggers' own level explicitly wins over an inherited root
+# level (Python's logging effective-level lookup stops at the first ancestor with its own level
+# set), so this holds regardless of how the embedding application configures the root logger.
+# Found via this module's own `GOOGLE_API_KEY`-never-logged test, which failed without this.
+logging.getLogger("websockets.client").setLevel(logging.WARNING)
+logging.getLogger("websockets.server").setLevel(logging.WARNING)
 
 DEFAULT_GEMINI_LIVE_MODEL = "gemini-3.8-live"
 
@@ -229,14 +241,29 @@ class GeminiLiveSession:
 
     async def send_audio(self, pcm_16khz: bytes) -> None:
         """Send raw 16 kHz, mono, 16-bit little-endian PCM (no WAV header) as a `realtimeInput`
-        message. `google-genai`'s `Blob` is used only to base64-encode `pcm_16khz` for the wire;
-        the fake server asserts the base64-decoded bytes it receives equal `pcm_16khz` exactly."""
-        msg = types.LiveClientMessage(
-            realtime_input=types.LiveClientRealtimeInput(
-                audio=types.Blob(data=pcm_16khz, mime_type=f"audio/pcm;rate={INPUT_SAMPLE_RATE_HZ}")
-            )
-        )
-        await self._send_json(msg.model_dump(mode="json", by_alias=True, exclude_none=True))
+        message.
+
+        Judgment call / bug found and fixed: `google-genai`'s own pydantic `model_dump(mode=
+        "json")` for a `bytes` field (e.g. `Blob.data`) encodes using the URL-safe base64 alphabet
+        (`-`/`_`, no padding), not the standard base64 alphabet (`+`/`/`, padded) that both the
+        real Gemini Live wire protocol (proto3 JSON's `bytes` mapping) and this module's fake test
+        server expect. Confirmed by direct experiment: encoding `bytes(range(256)) * 4` through
+        `Blob(data=...).model_dump(mode="json")` and decoding the result with standard
+        `base64.b64decode` silently produces *different, shorter* bytes than the original -- a
+        real audio-corruption bug that small test buffers happened not to exercise (no byte
+        triggered the `+`/`/` vs `-`/`_` difference). So the `data` field is base64-encoded here
+        by hand with the standard alphabet instead of trusting the model's own dump for it;
+        `google-genai`'s types are still used for every other (non-bytes) field.
+        """
+        payload = {
+            "realtimeInput": {
+                "audio": {
+                    "data": base64.b64encode(pcm_16khz).decode("ascii"),
+                    "mimeType": f"audio/pcm;rate={INPUT_SAMPLE_RATE_HZ}",
+                }
+            }
+        }
+        await self._send_json(payload)
 
     async def say(self, script: str) -> None:
         """Make the model speak `script` verbatim: a `clientContent` turn whose single text part
