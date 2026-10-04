@@ -582,6 +582,7 @@ dependencies = [
     { name = "python-frontmatter" },
     { name = "redis" },
     { name = "uvicorn" },
+    { name = "websockets" },
 ]
 
 [package.dev-dependencies]
@@ -603,6 +604,7 @@ requires-dist = [
     { name = "python-frontmatter", specifier = ">=1.1" },
     { name = "redis", specifier = ">=5.2" },
     { name = "uvicorn", specifier = ">=0.32" },
+    { name = "websockets", specifier = ">=16.1.1" },
 ]
 
 [package.metadata.requires-dev]
