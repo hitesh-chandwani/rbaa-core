@@ -27,7 +27,16 @@ Live tests are skipped unless `-m live` is passed and the required environment v
 The scaffold currently has only `pytest` and `ruff`. Add the following in the issue that first needs it, and record it in `pyproject.toml`:
 
 - An HTTP mocking approach (first needed by #7). The project uses `httpx2`, and `respx` targets the original `httpx`, so check that `respx` works with `httpx2` before adopting it. Otherwise use `httpx2`'s own mock transport. Record the choice here.
-- `pytest-asyncio` for async tests (first needed by #11 or #12)
+
+  **Decision (#7): use `httpx2.MockTransport`.** Confirmed `respx` is incompatible: it validates
+  `mock(return_value=...)` with `isinstance(value, httpx.Response)` (the original `httpx` package),
+  which rejects an `httpx2.Response` outright (`TypeError: ... is not an instance of httpx.Response`).
+  `httpx2` ships its own `MockTransport(handler)` (sync or async handler, same shape as httpx's),
+  which is what tests use: build an `httpx2.AsyncClient(transport=httpx2.MockTransport(handler))`
+  and inject it as the `client` argument. No new dependency was needed for this.
+- `pytest-asyncio` for async tests (first needed by #7, for `fetch_github_activity`). Added as a
+  dev dependency; `[tool.pytest.ini_options]` sets `asyncio_mode = "auto"` so async test functions
+  run without an explicit `@pytest.mark.asyncio` on each one.
 - the `live` and `integration` markers, registered under `[tool.pytest.ini_options]`, plus the skip logic in `tests/conftest.py`
 
 ## What to fake, and how
