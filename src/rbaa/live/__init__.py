@@ -73,6 +73,12 @@ RECONNECT_DELAY_SECONDS = 1.0
 # instead of hanging forever on an empty queue.
 _CLOSE_SENTINEL = object()
 
+# say()'s exact request wording -- a module constant so a test can assert on it precisely. See
+# say()'s docstring for the judgment call this pins.
+_SAY_INSTRUCTION_TEMPLATE = (
+    "Say the following verbatim, with no changes, additions or omissions: %s"
+)
+
 SleepFn = Callable[[float], Awaitable[None]]
 
 
@@ -233,7 +239,27 @@ class GeminiLiveSession:
         await self._send_json(msg.model_dump(mode="json", by_alias=True, exclude_none=True))
 
     async def say(self, script: str) -> None:
-        raise NotImplementedError
+        """Make the model speak `script` verbatim: a `clientContent` turn whose single text part
+        instructs the model to read `script` exactly, with `turn_complete=True` so the model
+        responds immediately rather than waiting for more input.
+
+        Judgment call: the issue leaves the exact instruction wording unpinned ("e.g. a turn with
+        the script as input text and an instruction to read it exactly ... pin the exact request
+        shape at implementation time"). The wording below was chosen for clarity to the model;
+        `_SAY_INSTRUCTION_TEMPLATE` is a module-level constant so a test can assert on it exactly
+        without re-deriving it independently.
+        """
+        msg = types.LiveClientMessage(
+            client_content=types.LiveClientContent(
+                turns=[
+                    types.Content(
+                        role="user", parts=[types.Part(text=_SAY_INSTRUCTION_TEMPLATE % script)]
+                    )
+                ],
+                turn_complete=True,
+            )
+        )
+        await self._send_json(msg.model_dump(mode="json", by_alias=True, exclude_none=True))
 
     async def send_tool_response(self, call_id: str, result: dict) -> None:
         """Send a `toolResponse` keyed by `call_id`, carrying `result` as its `response`. `name`
