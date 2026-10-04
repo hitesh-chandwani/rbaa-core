@@ -282,6 +282,26 @@ def test_validate_claims_keeps_planned_claim_citing_non_done_ticket():
     assert validate_claims(claims, context) == claims
 
 
+def test_validate_claims_drops_blocker_claim_citing_merged_pr_only():
+    """QA's exact FAIL-reproducing scenario: a `WorkContext` with one merged PR and empty
+    `blockers`, and a `kind="blocker"` claim citing that PR's evidence_id. Rule (a) alone would
+    pass this (the PR exists in the context); rule (c) requires the evidence to resolve into
+    `context.blockers` specifically, so this must be dropped."""
+    context = _context(merged_prs=[_pr("acme", "repo", 123)], blockers=[])
+    claims = [Claim(text="waiting on review", kind="blocker", evidence_ids=["gh:pr:acme/repo#123"])]
+
+    assert validate_claims(claims, context) == []
+
+
+def test_validate_claims_keeps_blocker_claim_grounded_by_context_blockers():
+    """Positive case for rule (c): a blocker claim whose evidence_id IS in `context.blockers`
+    passes validation."""
+    context = _context(blockers=[_blocker("ABC-3")])
+    claims = [Claim(text="blocked on ABC-3", kind="blocker", evidence_ids=["jira:ABC-3"])]
+
+    assert validate_claims(claims, context) == claims
+
+
 # --------------------------------------------------------------------------------------------
 # Grounding via the full draft_standup path (testing-guidelines rule 1)
 # --------------------------------------------------------------------------------------------
@@ -356,6 +376,32 @@ async def test_blocker_claim_with_fabricated_evidence_is_dropped():
     result = await draft_standup(_role(), context, client=client)
 
     assert "blocked on something imaginary" not in result.script_text
+    assert result.claims == []
+
+
+async def test_blocker_claim_citing_unrelated_merged_pr_is_dropped():
+    """QA's exact FAIL-reproducing scenario, exercised through the full `draft_standup` path: a
+    `WorkContext` with one merged PR and empty `blockers`, and a `kind="blocker"` claim citing
+    that PR's evidence_id. Rule (a) alone (existence anywhere in the context) would let this
+    through; rule (c) requires the evidence to resolve into `context.blockers` specifically, so
+    the claim must not reach `script_text`."""
+    context = _context(merged_prs=[_pr("acme", "repo", 123)], blockers=[])
+    client = RecordingClient(
+        _claims_json(
+            [
+                {
+                    "text": "waiting on review",
+                    "kind": "blocker",
+                    "evidence_ids": ["gh:pr:acme/repo#123"],
+                }
+            ]
+        )
+    )
+
+    result = await draft_standup(_role(), context, client=client)
+
+    assert "waiting on review" not in result.script_text
+    assert "Blockers:" not in result.script_text
     assert result.claims == []
 
 

@@ -29,14 +29,20 @@ Validation rules (pinned by #10, using #9's exact evidence_id formats: ``gh:comm
   *at least one* of its evidence_ids resolves to `context.merged_prs`, `context.commits`, or a
   `context.tickets` entry with `status_category == "Done"`. An evidence_id that only resolves to
   an open PR or a non-Done ticket does not satisfy this rule.
+- **Rule (c) -- blocker grounding.** A claim with `kind == "blocker"` is valid only if *at least
+  one* of its evidence_ids resolves to an item actually present in `context.blockers` (matched by
+  that blocker's own `evidence_id`, the `jira:{key}` of the *blocked* ticket per #9). An
+  evidence_id that only resolves elsewhere (a merged PR, a commit, or a ticket that is not in
+  `context.blockers`) does not satisfy this rule, so such a claim is dropped even though it passes
+  rule (a). This closes the gap QA found in judgment call 4 below -- the groomed issue's acceptance
+  criteria already required "blockers spoken are only those present in `context.blockers`"; this
+  was simply not implemented until now.
 - **All-or-nothing per claim.** If *any* of a claim's evidence_ids fails rule (a), the whole claim
   is dropped, not just that one id (judgment call 2 below).
 - **No evidence_ids at all fails rule (a).** A claim with an empty `evidence_ids` list is dropped
   (judgment call 3 below) -- this is required by the issue's own grounding test criterion ("a
   claim injected with no evidence_ids ... never appears in script_text").
-- `"planned"` and `"blocker"` claims have no rule beyond (a): the issue pins only rules (a) and
-  (b), with no rule (c) grounding a `"blocker"` claim specifically to `context.blockers` the way
-  rule (b) grounds a `"completed"` claim. See judgment call 4 below -- flagged for the PM.
+- `"planned"` claims have no rule beyond (a); the issue pins only rules (a) and (b) for them.
 
 Speaking time and trimming (pinned by #10)
 ---------------------------------------------
@@ -89,15 +95,15 @@ Judgment calls (#10 did not pin these; disclosed per the engineer's issue commen
    `"blocker"` ones. A real, well-formed `"planned"` claim about an existing (not-yet-Done) ticket
    still has a valid evidence_id (the ticket itself, via rule a) to cite, so this does not stop
    genuine forward-looking claims; it only stops ones with literally nothing behind them.
-4. **No rule (c) for `"blocker"` claims.** The issue pins exactly two rules, (a) and (b); it does
-   not define an analogous "must resolve to `context.blockers`" rule for `kind == "blocker"`, the
-   way rule (b) does for `"completed"`. As implemented, rule (a) alone does not stop a
-   `"blocker"`-kind claim from citing a real but unrelated ticket's evidence_id (one that exists in
-   `context.tickets` but is not actually in `context.blockers`) -- it would pass existence and be
-   spoken as a "blocker" that was never flagged as blocked. **Flagged for the PM**: a parallel rule
-   b for blockers (valid only if an evidence_id resolves to `context.blockers`) may be needed for
-   full NFR-01 protection on blocker claims; not added here because it is not in the issue's pinned
-   rule set and adding it unasked would be changing the acceptance criteria.
+4. **Resolved -- rule (c) added for `"blocker"` claims.** Originally this implementation had no
+   rule beyond (a) for `kind == "blocker"` claims, reasoning that the issue pinned only rules (a)
+   and (b). QA FAILed this: the groomed issue's acceptance criteria already state, verbatim,
+   "blockers spoken are only those present in `context.blockers`" -- that is not satisfiable by
+   rule (a) alone, since rule (a)'s existence universe also includes commits, merged_prs and
+   tickets. QA proved it with a `WorkContext` holding one merged PR and empty `blockers`, and a
+   `kind="blocker"` claim citing that PR's evidence_id, which incorrectly passed. Rule (c) above
+   fixes this by requiring a blocker claim's evidence to resolve into `context.blockers`
+   specifically, mirroring rule (b)'s structure for completed claims.
 5. **Within-tier trim order.** The issue pins cross-tier drop order (planned before completed
    before blocker) but not which claim within a tier goes first. This drops from the end of the
    tier's list (last-proposed-first within a tier), simply because it is the simplest deterministic
@@ -274,7 +280,7 @@ def _parse_claims(raw: str) -> list[Claim]:
 
 def validate_claims(claims: list[Claim], context: WorkContext) -> list[Claim]:
     """Deterministic, plain-Python grounding check (NFR-01) -- no model call. See the module
-    docstring for rules (a) and (b), and judgment calls 1-4.
+    docstring for rules (a), (b) and (c), and judgment calls 1-4.
 
     This is the only function allowed to decide what is grounded; `draft_standup` never trusts the
     LLM's own text for that decision.
@@ -290,6 +296,9 @@ def validate_claims(claims: list[Claim], context: WorkContext) -> list[Claim]:
     completed_ids |= {pr.evidence_id for pr in context.merged_prs}
     completed_ids |= {t.evidence_id for t in context.tickets if t.status_category == "Done"}
 
+    # Rule (c) universe: evidence that grounds a "blocker" claim specifically.
+    blocker_ids = {b.evidence_id for b in context.blockers}
+
     validated: list[Claim] = []
     for claim in claims:
         if not claim.evidence_ids:
@@ -300,6 +309,8 @@ def validate_claims(claims: list[Claim], context: WorkContext) -> list[Claim]:
             eid in completed_ids for eid in claim.evidence_ids
         ):
             continue  # rule (b)
+        if claim.kind == "blocker" and not any(eid in blocker_ids for eid in claim.evidence_ids):
+            continue  # rule (c)
         validated.append(claim)
     return validated
 
