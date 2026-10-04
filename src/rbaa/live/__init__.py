@@ -236,7 +236,19 @@ class GeminiLiveSession:
         raise NotImplementedError
 
     async def send_tool_response(self, call_id: str, result: dict) -> None:
-        raise NotImplementedError
+        """Send a `toolResponse` keyed by `call_id`, carrying `result` as its `response`. `name`
+        is filled in from the matching `ToolCall` dispatched earlier (tracked in
+        `_pending_tool_call_names`) when available -- the real Gemini Live API documents
+        `FunctionResponse.name`, but #11's acceptance criterion only requires the id and result to
+        round-trip, so a response for an id this session never saw a `ToolCall` for still sends
+        (with no `name`) rather than raising."""
+        name = self._pending_tool_call_names.pop(call_id, None)
+        msg = types.LiveClientMessage(
+            tool_response=types.LiveClientToolResponse(
+                function_responses=[types.FunctionResponse(id=call_id, name=name, response=result)]
+            )
+        )
+        await self._send_json(msg.model_dump(mode="json", by_alias=True, exclude_none=True))
 
     # ------------------------------------------------------------------
     # incoming streams
@@ -417,7 +429,13 @@ class GeminiLiveSession:
                 )
 
     async def _handle_tool_call(self, tool_call: types.LiveServerToolCall) -> None:
-        raise NotImplementedError
+        """Dispatch one `ToolCall` event per function call the server asked us to make, and
+        remember each call's `name` so `send_tool_response` can fill it in later."""
+        for call in tool_call.function_calls or []:
+            if call.id is None or call.name is None:
+                continue  # malformed; nothing we can round-trip a response against
+            self._pending_tool_call_names[call.id] = call.name
+            await self._event_queue.put(ToolCall(id=call.id, name=call.name, args=call.args or {}))
 
 
 __all__ = [
