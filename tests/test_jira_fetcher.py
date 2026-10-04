@@ -151,7 +151,7 @@ async def test_search_request_uses_documented_query_parameters():
     url = httpx2.URL(search_calls[0])
     assert url.params["jql"] == "project = PROJ AND assignee = acc-123 ORDER BY updated DESC"
     assert url.params["expand"] == "changelog"
-    assert url.params["fields"] == "summary,status,updated"
+    assert url.params["fields"] == "summary,status,updated,labels,issuelinks"
     assert url.params["startAt"] == "0"
     assert url.params["maxResults"] == "100"
 

@@ -23,7 +23,8 @@ Endpoint (Jira Cloud REST API v3)
 
 Per project: `GET {JIRA_API_BASE}/rest/api/3/search` with
 `jql=project = {project_key} AND assignee = {agent.jira_account_id} ORDER BY updated DESC`,
-`expand=changelog`, `fields=summary,status,updated`, `startAt={n}`, `maxResults=100`.
+`expand=changelog`, `fields=summary,status,updated,labels,issuelinks`, `startAt={n}`,
+`maxResults=100`.
 
 Pagination follows the response body's own `startAt` / `maxResults` / `total` fields -
 incrementing `startAt` by the response's `maxResults` and re-requesting - until
@@ -80,15 +81,11 @@ Judgment calls (#8 did not pin these; disclosed per the engineer's issue comment
    header exactly. Real Jira Cloud normally wants Basic auth with an account email plus API token;
    `Agent` carries only one secret token and no email, so Bearer is used for parity with #7 rather
    than guessing an email field that does not exist.
-3. **`fields` vs. what blocker/status detection needs.** The pinned query param is
-   `fields=summary,status,updated` (#8's literal wording), but blocker detection reads
-   `fields.labels`/`fields.issuelinks` and completion detection reads `fields.status.
-   statusCategory`. Against a real Jira site, that `fields` value would make the API omit
-   `labels`/`issuelinks` from the response, silently breaking blocker detection. Tests mock the
-   transport and the fixtures include those fields regardless of what was requested, so the
-   acceptance criterion's exact param is honored without touching correctness of the *tests*; this
-   is flagged here as a very likely latent production bug, not silently fixed, since the issue
-   pins the param value exactly.
+3. **`fields` vs. what blocker/status detection needs.** QA FAIL'd the originally pinned
+   `fields=summary,status,updated`: blocker detection reads `fields.labels`/`fields.issuelinks`,
+   and against a real Jira site that narrower `fields` value would make the API omit both from the
+   response, silently breaking blocker detection. The PM corrected the acceptance criterion to
+   `fields=summary,status,updated,labels,issuelinks`, which is what is sent below.
 4. **Ticket `url`.** Built as `{JIRA_API_BASE}/browse/{key}`. The search response has no
    browser-facing field equivalent to GitHub's `html_url`; Jira's own `self` field is only the API
    endpoint, not something a human would click.
@@ -294,7 +291,7 @@ async def _fetch_project_issues(
         params = {
             "jql": f"project = {project_key} AND assignee = {account_id} ORDER BY updated DESC",
             "expand": "changelog",
-            "fields": "summary,status,updated",
+            "fields": "summary,status,updated,labels,issuelinks",
             "startAt": str(start_at),
             "maxResults": str(_MAX_RESULTS),
         }
