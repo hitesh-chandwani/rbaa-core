@@ -307,14 +307,64 @@ class GeminiLiveSession:
 
     async def _receive_loop(self) -> None:
         """The single, lifetime-of-the-session reader of the WebSocket. Dispatches each message;
-        on an unexpected close, hands off to reconnection (filled in by a later commit -- for now
-        it just stops)."""
+        on an unexpected close (anything other than our own `close()`), hands off to
+        `_attempt_reconnect`. If that succeeds, keeps reading from the new socket; if it is
+        exhausted, emits exactly one `SessionLost` and stops -- the session does not retry again
+        on its own.
+        """
         while True:
             try:
                 raw = await self._ws.recv()
-            except ConnectionClosed:
-                return
+            except (ConnectionClosed, OSError):
+                if self._closing:
+                    return
+                reconnected = await self._attempt_reconnect()
+                if not reconnected:
+                    await self._event_queue.put(
+                        SessionLost(
+                            reason=f"reconnect failed after {RECONNECT_MAX_ATTEMPTS} attempts"
+                        )
+                    )
+                    return
+                continue
             await self._dispatch(raw)
+
+    async def _attempt_reconnect(self) -> bool:
+        """Try up to `RECONNECT_MAX_ATTEMPTS` times, with a fixed `RECONNECT_DELAY_SECONDS` delay
+        (via the injectable `self._sleep`, default `asyncio.sleep`) before each attempt, to open a
+        new socket and resume the session using the last stored resumption handle. Returns True
+        and swaps in the new socket on the first successful attempt; returns False once every
+        attempt has failed.
+
+        Judgment call: the delay is applied before *every* attempt, including the first (rather
+        than only *between* attempts, i.e. none before the first) -- the issue says "a fixed
+        1-second delay between attempts" without pinning whether attempt 1 is immediate. Applying
+        it uniformly is simpler to implement and to assert on (`sleep` is called exactly
+        `RECONNECT_MAX_ATTEMPTS` times), and 3 * 1s of delay plus near-instant local connection
+        attempts still comfortably clears the "well inside 5 seconds" budget the issue requires.
+        """
+        for attempt in range(1, RECONNECT_MAX_ATTEMPTS + 1):
+            await self._sleep(RECONNECT_DELAY_SECONDS)
+            try:
+                new_ws = await self._open_socket()
+                await new_ws.send(
+                    json.dumps(
+                        {"setup": self._build_setup_dict(resumption_handle=self._resumption_handle)}
+                    )
+                )
+                raw = await asyncio.wait_for(new_ws.recv(), timeout=5)
+                if "setupComplete" not in json.loads(raw):
+                    raise RuntimeError("reconnect: did not receive setupComplete")
+            except Exception:
+                logger.warning(
+                    "GeminiLiveSession reconnect attempt %d/%d failed",
+                    attempt,
+                    RECONNECT_MAX_ATTEMPTS,
+                )
+                continue
+            self._ws = new_ws
+            return True
+        return False
 
     async def _dispatch(self, raw: str | bytes) -> None:
         data = json.loads(raw)
