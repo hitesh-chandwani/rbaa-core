@@ -1,0 +1,288 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rbaa.dev/schemas/work_context.schema.json",
+  "$defs": {
+    "BlockerItem": {
+      "description": "One blocked ticket, with its evidence ID (of the *blocked* ticket) added.",
+      "properties": {
+        "evidence_id": {
+          "title": "Evidence Id",
+          "type": "string"
+        },
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "blocking_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Blocking Key"
+        }
+      },
+      "required": [
+        "evidence_id",
+        "key"
+      ],
+      "title": "BlockerItem",
+      "type": "object",
+      "additionalProperties": false
+    },
+    "CommitItem": {
+      "description": "One commit, with its evidence ID added.",
+      "properties": {
+        "evidence_id": {
+          "title": "Evidence Id",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "url": {
+          "title": "Url",
+          "type": "string"
+        },
+        "timestamp": {
+          "format": "date-time",
+          "title": "Timestamp",
+          "type": "string"
+        }
+      },
+      "required": [
+        "evidence_id",
+        "id",
+        "title",
+        "url",
+        "timestamp"
+      ],
+      "title": "CommitItem",
+      "type": "object",
+      "additionalProperties": false
+    },
+    "ContextFetchError": {
+      "description": "One source's fetch error, tagged by origin.\n\n`resource` is the repo (GitHub) or project key (Jira) the error is scoped to, or `None` for a\nsynthesized whole-source failure (judgment calls 3 and 4 in the module docstring).",
+      "properties": {
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "status": {
+          "title": "Status",
+          "type": "integer"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "resource": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resource"
+        }
+      },
+      "required": [
+        "source",
+        "status",
+        "message"
+      ],
+      "title": "ContextFetchError",
+      "type": "object",
+      "additionalProperties": false
+    },
+    "PullRequestItem": {
+      "description": "One pull request (merged, or awaiting the agent's review), with its evidence ID added.",
+      "properties": {
+        "evidence_id": {
+          "title": "Evidence Id",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "url": {
+          "title": "Url",
+          "type": "string"
+        },
+        "timestamp": {
+          "format": "date-time",
+          "title": "Timestamp",
+          "type": "string"
+        },
+        "related": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Related",
+          "type": "array"
+        }
+      },
+      "required": [
+        "evidence_id",
+        "id",
+        "title",
+        "url",
+        "timestamp"
+      ],
+      "title": "PullRequestItem",
+      "type": "object",
+      "additionalProperties": false
+    },
+    "TicketItem": {
+      "description": "One Jira ticket, with its evidence ID added.",
+      "properties": {
+        "evidence_id": {
+          "title": "Evidence Id",
+          "type": "string"
+        },
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "summary": {
+          "title": "Summary",
+          "type": "string"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "status_category": {
+          "title": "Status Category",
+          "type": "string"
+        },
+        "updated": {
+          "format": "date-time",
+          "title": "Updated",
+          "type": "string"
+        },
+        "url": {
+          "title": "Url",
+          "type": "string"
+        },
+        "related": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Related",
+          "type": "array"
+        }
+      },
+      "required": [
+        "evidence_id",
+        "key",
+        "summary",
+        "status",
+        "status_category",
+        "updated",
+        "url"
+      ],
+      "title": "TicketItem",
+      "type": "object",
+      "additionalProperties": false
+    }
+  },
+  "description": "One agent's merged GitHub + Jira activity, as a single deterministic, evidence-backed\npayload. See the module docstring for the field mapping, evidence ID formats, and\ndeterminism rule.",
+  "properties": {
+    "agent_id": {
+      "title": "Agent Id",
+      "type": "string"
+    },
+    "generated_at": {
+      "format": "date-time",
+      "title": "Generated At",
+      "type": "string"
+    },
+    "since": {
+      "format": "date-time",
+      "title": "Since",
+      "type": "string"
+    },
+    "commits": {
+      "items": {
+        "$ref": "#/$defs/CommitItem"
+      },
+      "title": "Commits",
+      "type": "array"
+    },
+    "merged_prs": {
+      "items": {
+        "$ref": "#/$defs/PullRequestItem"
+      },
+      "title": "Merged Prs",
+      "type": "array"
+    },
+    "open_reviews": {
+      "items": {
+        "$ref": "#/$defs/PullRequestItem"
+      },
+      "title": "Open Reviews",
+      "type": "array"
+    },
+    "tickets": {
+      "items": {
+        "$ref": "#/$defs/TicketItem"
+      },
+      "title": "Tickets",
+      "type": "array"
+    },
+    "blockers": {
+      "items": {
+        "$ref": "#/$defs/BlockerItem"
+      },
+      "title": "Blockers",
+      "type": "array"
+    },
+    "errors": {
+      "items": {
+        "$ref": "#/$defs/ContextFetchError"
+      },
+      "title": "Errors",
+      "type": "array"
+    },
+    "truncated": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "title": "Truncated",
+      "type": "object"
+    }
+  },
+  "required": [
+    "agent_id",
+    "generated_at",
+    "since",
+    "commits",
+    "merged_prs",
+    "open_reviews",
+    "tickets",
+    "blockers",
+    "errors",
+    "truncated"
+  ],
+  "title": "WorkContext",
+  "type": "object",
+  "additionalProperties": false
+}
