@@ -222,7 +222,15 @@ class GeminiLiveSession:
     # ------------------------------------------------------------------
 
     async def send_audio(self, pcm_16khz: bytes) -> None:
-        raise NotImplementedError
+        """Send raw 16 kHz, mono, 16-bit little-endian PCM (no WAV header) as a `realtimeInput`
+        message. `google-genai`'s `Blob` is used only to base64-encode `pcm_16khz` for the wire;
+        the fake server asserts the base64-decoded bytes it receives equal `pcm_16khz` exactly."""
+        msg = types.LiveClientMessage(
+            realtime_input=types.LiveClientRealtimeInput(
+                audio=types.Blob(data=pcm_16khz, mime_type=f"audio/pcm;rate={INPUT_SAMPLE_RATE_HZ}")
+            )
+        )
+        await self._send_json(msg.model_dump(mode="json", by_alias=True, exclude_none=True))
 
     async def say(self, script: str) -> None:
         raise NotImplementedError
@@ -231,14 +239,29 @@ class GeminiLiveSession:
         raise NotImplementedError
 
     # ------------------------------------------------------------------
-    # incoming streams (filled in by later commits)
+    # incoming streams
     # ------------------------------------------------------------------
 
-    def audio_out(self) -> AsyncIterator[bytes]:
-        raise NotImplementedError
+    async def audio_out(self) -> AsyncIterator[bytes]:
+        """Yield decoded 24 kHz, mono, 16-bit little-endian PCM chunks as they arrive. Ends
+        (`StopAsyncIteration`) once `close()` has been called and no more chunks are queued.
+        Never sees chunks that were discarded for an interrupted turn -- see
+        `_handle_server_content`."""
+        while True:
+            item = await self._audio_queue.get()
+            if item is _CLOSE_SENTINEL:
+                return
+            yield item
 
-    def events(self) -> AsyncIterator[LiveEvent]:
-        raise NotImplementedError
+    async def events(self) -> AsyncIterator[LiveEvent]:
+        """Yield `LiveEvent`s (`Interrupted`, `ToolCall`, `TranscriptUpdate`, `SessionLost`) as
+        they occur. Ends (`StopAsyncIteration`) once `close()` has been called and no more events
+        are queued."""
+        while True:
+            item = await self._event_queue.get()
+            if item is _CLOSE_SENTINEL:
+                return
+            yield item
 
     # ------------------------------------------------------------------
     # wire protocol helpers
@@ -298,7 +321,53 @@ class GeminiLiveSession:
         if "setupComplete" in data:
             self._setup_complete_event.set()
             return
-        # serverContent/toolCall/sessionResumptionUpdate handling arrives in later commits.
+
+        # `types.LiveServerMessage.model_validate` is used purely as a parsing helper: it base64-
+        # decodes `inlineData.data` (audio) into real `bytes` for us, and gives named access to
+        # every field by its snake_case name regardless of the wire's camelCase key.
+        message = types.LiveServerMessage.model_validate(data)
+
+        if message.server_content is not None:
+            await self._handle_server_content(message.server_content)
+        if message.tool_call is not None:
+            await self._handle_tool_call(message.tool_call)
+        if message.session_resumption_update is not None:
+            new_handle = message.session_resumption_update.new_handle
+            if new_handle:
+                self._resumption_handle = new_handle
+
+    async def _handle_server_content(self, content: types.LiveServerContent) -> None:
+        """Handle one `serverContent` message: barge-in, audio chunks, transcripts.
+
+        Race-freedom of the interrupted drain: `_receive_loop` is the *only* task that ever calls
+        `_audio_queue.put`/`get_nowait`, and this method runs to completion with no `await`
+        between "decide `interrupted` is set" and "drain the queue and push `Interrupted()`" --
+        asyncio only switches tasks at an `await` point, so a concurrent `audio_out()` consumer
+        can never observe the queue mid-drain. Anything already sitting in the queue at the
+        instant this message is processed (i.e. read off the socket for the interrupted turn but
+        not yet popped by `audio_out()`) is removed before any `audio_out()` consumer can see it.
+        """
+        if content.interrupted:
+            while True:
+                try:
+                    self._audio_queue.get_nowait()
+                except asyncio.QueueEmpty:
+                    break
+            await self._event_queue.put(Interrupted())
+
+        if content.model_turn is not None:
+            for part in content.model_turn.parts or []:
+                if part.inline_data is not None and part.inline_data.data is not None:
+                    await self._audio_queue.put(part.inline_data.data)
+
+        for transcription in (content.input_transcription, content.output_transcription):
+            if transcription is not None and transcription.text is not None:
+                await self._event_queue.put(
+                    TranscriptUpdate(text=transcription.text, is_final=bool(transcription.finished))
+                )
+
+    async def _handle_tool_call(self, tool_call: types.LiveServerToolCall) -> None:
+        raise NotImplementedError
 
 
 __all__ = [
