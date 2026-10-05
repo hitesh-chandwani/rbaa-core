@@ -26,6 +26,12 @@ incoming message and either:
   exactly one `Interrupted()` -- see `_handle_server_content`'s docstring for why this drain is
   race-free with respect to a concurrent `audio_out()` consumer.
 
+Transcripts: the real API's transcription chunks never carry a `finished` field (see
+`_handle_server_content`'s docstring for the real-API bug this caused and its fix) -- text is
+accumulated across chunks per turn and finalized (`is_final=True`, full accumulated text) only on
+a later, separate `generation_complete`/`turn_complete` signal; non-final, running-text
+`TranscriptUpdate`s are also pushed per chunk along the way.
+
 `audio_out()` and `events()` are thin async generators that just pop off those two queues; they
 never touch the socket directly. This is what lets a dropped connection be transparently retried
 (see `_attempt_reconnect`, filled in later) without either generator needing to know.
@@ -189,6 +195,12 @@ class GeminiLiveSession:
         self._event_queue: asyncio.Queue[Any] = asyncio.Queue()
         self._pending_tool_call_names: dict[str, str] = {}
 
+        # Running per-turn transcript accumulators -- see `_handle_server_content` for why these
+        # exist (the real API's `finished` field on a transcription chunk is fictional) and the
+        # module docstring's "Real-API protocol bug (#11 follow-up)" section for the full story.
+        self._output_transcript_buffer: str = ""
+        self._input_transcript_buffer: str = ""
+
         self._receive_task: asyncio.Task[None] | None = None
         self._setup_complete_event = asyncio.Event()
         self._closing = False
@@ -221,6 +233,8 @@ class GeminiLiveSession:
         self._closing = False
         self._closed = False
         self._setup_complete_event = asyncio.Event()
+        self._output_transcript_buffer = ""
+        self._input_transcript_buffer = ""
 
         self._ws = await self._open_socket()
         await self._ws.send(json.dumps({"setup": self._build_setup_dict(resumption_handle=None)}))
@@ -476,6 +490,47 @@ class GeminiLiveSession:
         can never observe the queue mid-drain. Anything already sitting in the queue at the
         instant this message is processed (i.e. read off the socket for the interrupted turn but
         not yet popped by `audio_out()`) is removed before any `audio_out()` consumer can see it.
+
+        Empty `serverContent` messages (no `model_turn`, no transcription, `interrupted` falsy,
+        neither `generation_complete` nor `turn_complete` set -- observed on the real API as
+        presumably pure audio-prep chunks) fall through every branch below untouched: a no-op, as
+        expected.
+
+        Real-API protocol bug fix (#11 follow-up, found testing against the live API): the real
+        server's `outputTranscription`/`inputTranscription` chunks **never** carry a `finished`
+        field -- it is fictional for this API, and reading it (as this method used to) means
+        `is_final` can never become `True` in production. Turn completion is instead signalled by
+        a later, *separate* `serverContent` message carrying `generation_complete` and/or
+        `turn_complete`, with no transcription payload at all. The real captured sequence for one
+        `say()` call was: several transcription chunks with no `finished` key, interleaved with
+        pure-audio `model_turn` chunks, followed by `{"generationComplete": true}` and then
+        `{"turnComplete": true}` as two separate messages carrying nothing else.
+
+        Fix: accumulate `text` across chunks into `_output_transcript_buffer`/
+        `_input_transcript_buffer` (independently for output/input), and finalize -- emit exactly
+        one `TranscriptUpdate(text=<accumulated>, is_final=True)` per buffer that saw any text
+        this turn, then reset that buffer -- on whichever of `generation_complete` or
+        `turn_complete` arrives first. `turn_complete` is the one guaranteed to always fire: the
+        real API's own field docs note an interrupted turn never gets a `generation_complete`, it
+        goes `interrupted` -> `turn_complete` directly. Finalizing on the first signal and
+        resetting the buffer means a later second signal for the same turn (e.g. `turn_complete`
+        arriving after `generation_complete` already finalized it) finds an empty buffer and emits
+        nothing more.
+
+        Judgment call: an `interrupted` message does *not* reset these buffers. Unlike queued
+        audio (which is discarded because it was never played and belongs to a turn the caller was
+        told to stop), text already accumulated before the interruption is genuinely what the
+        model said before being cut off, and the real API still sends a `turn_complete` for that
+        same (now-interrupted) turn afterwards -- so the existing accumulated text is finalized by
+        that `turn_complete` as the turn's (partial) transcript, not discarded.
+
+        Judgment call: in addition to the one final event per turn, a non-final
+        `TranscriptUpdate(is_final=False)` is also emitted per chunk as it arrives, carrying the
+        *running* accumulated text so far (not just that chunk) -- matching this module's own
+        Goal wording ("yields ... a running transcript") and useful for a live UI that wants
+        growing text rather than disjoint fragments. These are purely additive: a caller that only
+        wants the final transcript (e.g. `say()`) just waits for `is_final=True`, exactly as
+        before this fix.
         """
         if content.interrupted:
             while True:
@@ -490,11 +545,30 @@ class GeminiLiveSession:
                 if part.inline_data is not None and part.inline_data.data is not None:
                     await self._audio_queue.put(part.inline_data.data)
 
-        for transcription in (content.input_transcription, content.output_transcription):
-            if transcription is not None and transcription.text is not None:
+        output_transcription = content.output_transcription
+        if output_transcription is not None and output_transcription.text is not None:
+            self._output_transcript_buffer += output_transcription.text
+            await self._event_queue.put(
+                TranscriptUpdate(text=self._output_transcript_buffer, is_final=False)
+            )
+        input_transcription = content.input_transcription
+        if input_transcription is not None and input_transcription.text is not None:
+            self._input_transcript_buffer += input_transcription.text
+            await self._event_queue.put(
+                TranscriptUpdate(text=self._input_transcript_buffer, is_final=False)
+            )
+
+        if content.generation_complete or content.turn_complete:
+            if self._output_transcript_buffer:
                 await self._event_queue.put(
-                    TranscriptUpdate(text=transcription.text, is_final=bool(transcription.finished))
+                    TranscriptUpdate(text=self._output_transcript_buffer, is_final=True)
                 )
+                self._output_transcript_buffer = ""
+            if self._input_transcript_buffer:
+                await self._event_queue.put(
+                    TranscriptUpdate(text=self._input_transcript_buffer, is_final=True)
+                )
+                self._input_transcript_buffer = ""
 
     async def _handle_tool_call(self, tool_call: types.LiveServerToolCall) -> None:
         """Dispatch one `ToolCall` event per function call the server asked us to make, and

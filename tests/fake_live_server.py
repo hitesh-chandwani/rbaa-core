@@ -8,6 +8,16 @@ transcripts), `toolCall` -> `toolResponse`, and `sessionResumptionUpdate` -- per
 guideline ("Build it once ... and reuse it across the interruption, reconnection, and
 tool-calling tests rather than re-implementing it per test").
 
+Protocol correction (#11 follow-up, found testing against the real API): an earlier version of
+this fake server put a `finished` field on `outputTranscription`/`inputTranscription` messages,
+assuming the caller could set transcript finality per chunk. Real wire captures against the
+actual Gemini Live API show that field is never sent -- it is fictional for this API. Turn
+completion is instead a later, separate `serverContent` message carrying `generationComplete`
+and/or `turnComplete`, with no transcription payload at all. `transcript_message()` below no
+longer accepts/produces a `finished` field; use `GENERATION_COMPLETE_MESSAGE`/
+`TURN_COMPLETE_MESSAGE` (or `EMPTY_SERVER_CONTENT_MESSAGE` for the real API's observed empty,
+pure-audio-prep `serverContent` messages) to script the rest of the real sequence.
+
 Usage
 -----
 ```python
@@ -43,6 +53,14 @@ DROP = object()
 
 INTERRUPTED_MESSAGE: dict[str, Any] = {"serverContent": {"interrupted": True}}
 
+# The real API signals turn completion with two separate, later `serverContent` messages with no
+# transcription payload at all -- `generationComplete` first, then `turnComplete` (an interrupted
+# turn skips straight to `turnComplete`, per the real API's own field docs). Also observed: plain
+# empty `serverContent: {}` messages (presumably pure audio-prep), which are no-ops for the client.
+GENERATION_COMPLETE_MESSAGE: dict[str, Any] = {"serverContent": {"generationComplete": True}}
+TURN_COMPLETE_MESSAGE: dict[str, Any] = {"serverContent": {"turnComplete": True}}
+EMPTY_SERVER_CONTENT_MESSAGE: dict[str, Any] = {"serverContent": {}}
+
 
 def audio_chunk_message(data: bytes, *, rate: int = 24000) -> dict[str, Any]:
     """A `serverContent` message carrying one `inlineData` audio chunk (base64-encoded on the
@@ -67,9 +85,12 @@ def tool_call_message(call_id: str, name: str, args: dict[str, Any]) -> dict[str
     return {"toolCall": {"functionCalls": [{"id": call_id, "name": name, "args": args}]}}
 
 
-def transcript_message(text: str, *, finished: bool = True, output: bool = True) -> dict[str, Any]:
+def transcript_message(text: str, *, output: bool = True) -> dict[str, Any]:
+    """One transcription chunk. No `finished` field -- the real API never sends one; see the
+    module docstring's "Protocol correction" note. Script `GENERATION_COMPLETE_MESSAGE`/
+    `TURN_COMPLETE_MESSAGE` separately to signal turn completion."""
     key = "outputTranscription" if output else "inputTranscription"
-    return {"serverContent": {key: {"text": text, "finished": finished}}}
+    return {"serverContent": {key: {"text": text}}}
 
 
 def resumption_update_message(handle: str) -> dict[str, Any]:
@@ -89,7 +110,7 @@ class ConnectionRecord:
 class _ConnectionPlan:
     refuse: bool = False
     send: list[Any] = field(default_factory=list)
-    on_message: Callable[[dict[str, Any]], dict[str, Any] | None] | None = None
+    on_message: Callable[[dict[str, Any]], Any] | None = None
 
 
 class FakeLiveServer:
@@ -106,7 +127,7 @@ class FakeLiveServer:
         *,
         refuse: bool = False,
         send: list[Any] | None = None,
-        on_message: Callable[[dict[str, Any]], dict[str, Any] | None] | None = None,
+        on_message: Callable[[dict[str, Any]], Any] | None = None,
     ) -> None:
         """Queue the behaviour for the next accepted connection.
 
@@ -114,10 +135,12 @@ class FakeLiveServer:
         `send`: messages (dicts) sent in order right after `setupComplete`; `DROP` in this list
             closes the connection at that point instead of sending anything further.
         `on_message`: called with each JSON message the client sends after setup; its return
-            value is sent back as a reply if it's a dict (used for the tool-call round trip),
-            closes the connection immediately if it's `DROP` (useful to drop deterministically
-            right after a specific client message instead of racing a scripted `send`/`DROP`
-            against that message), or does nothing further if it's `None`.
+            value is sent back as a reply/replies if it's a dict (sent as one message) or a list
+            of dicts (sent in order -- e.g. a transcript chunk followed by the real API's separate
+            `generationComplete`/`turnComplete` messages), closes the connection immediately if
+            it (or any item in the list) is `DROP` (useful to drop deterministically right after a
+            specific client message instead of racing a scripted `send`/`DROP` against that
+            message), or does nothing further if it's `None`.
         """
         self._plans.append(
             _ConnectionPlan(refuse=refuse, send=list(send or []), on_message=on_message)
@@ -160,11 +183,18 @@ class FakeLiveServer:
                 record.received.append(msg)
                 if plan.on_message is not None:
                     reply = plan.on_message(msg)
-                    if reply is DROP:
-                        await ws.close(code=1011, reason="fake-live-server: dropped")
+                    if reply is None:
+                        continue
+                    replies = reply if isinstance(reply, list) else [reply]
+                    dropped = False
+                    for item in replies:
+                        if item is DROP:
+                            await ws.close(code=1011, reason="fake-live-server: dropped")
+                            dropped = True
+                            break
+                        await ws.send(json.dumps(item))
+                    if dropped:
                         return
-                    if reply is not None:
-                        await ws.send(json.dumps(reply))
         except ConnectionClosed:
             pass
 

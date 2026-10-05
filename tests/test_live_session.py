@@ -36,6 +36,9 @@ import os
 import pytest
 from fake_live_server import (
     DROP,
+    EMPTY_SERVER_CONTENT_MESSAGE,
+    GENERATION_COMPLETE_MESSAGE,
+    TURN_COMPLETE_MESSAGE,
     FakeLiveServer,
     audio_chunk_message,
     tool_call_message,
@@ -337,12 +340,19 @@ async def test_tool_call_round_trip(fake_server):
 
 
 async def test_say_sends_correct_request_and_captures_transcript(fake_server):
+    """Mirrors the real API's protocol: a transcript chunk with no `finished` field, followed by
+    separate `generationComplete`/`turnComplete` messages -- see the regression test below for
+    the full story of the bug this shape would have caught."""
     script = "Standup is cancelled today."
     captured: list[dict] = []
 
     def on_message(msg: dict):
         captured.append(msg)
-        return transcript_message(script, finished=True, output=True)
+        return [
+            transcript_message(script, output=True),
+            GENERATION_COMPLETE_MESSAGE,
+            TURN_COMPLETE_MESSAGE,
+        ]
 
     fake_server.plan_connection(on_message=on_message)
     session = GeminiLiveSession(ws_url=fake_server.ws_url)
@@ -358,8 +368,73 @@ async def test_say_sends_correct_request_and_captures_transcript(fake_server):
         assert script in text  # exact wording is an implementation judgment call; script
         # appearing verbatim in the instruction is what matters here.
 
-        event = await _anext(session.events())
-        assert event == TranscriptUpdate(text=script, is_final=True)
+        # One non-final running-transcript update for the chunk, then the final accumulated one.
+        events_iter = session.events()
+        assert await _anext(events_iter) == TranscriptUpdate(text=script, is_final=False)
+        assert await _anext(events_iter) == TranscriptUpdate(text=script, is_final=True)
+    finally:
+        await session.close()
+
+
+# --------------------------------------------------------------------------------------------
+# Regression (#11 follow-up): real-API turn-completion protocol bug
+#
+# Confirmed against real wire captures: `outputTranscription`/`inputTranscription` chunks never
+# carry a `finished` field. Turn completion is a later, separate `serverContent` message with no
+# transcription payload (`generationComplete` then `turnComplete`). The old fake server/tests
+# assumed `finished` was real and settable, which hid this: this test reproduces the exact
+# captured shape and would have caught the bug (no `TranscriptUpdate(is_final=True)` would ever
+# have been emitted under the old, buggy `_handle_server_content`).
+# --------------------------------------------------------------------------------------------
+
+
+async def test_output_transcript_accumulates_until_turn_complete(fake_server):
+    fake_server.plan_connection(
+        send=[
+            EMPTY_SERVER_CONTENT_MESSAGE,
+            EMPTY_SERVER_CONTENT_MESSAGE,
+            audio_chunk_message(b"audio-1"),
+            transcript_message("Hello, this "),
+            audio_chunk_message(b"audio-2"),
+            transcript_message("a connectivity "),
+            transcript_message("test."),
+            audio_chunk_message(b"audio-3"),
+            GENERATION_COMPLETE_MESSAGE,
+            TURN_COMPLETE_MESSAGE,
+        ]
+    )
+    session = GeminiLiveSession(ws_url=fake_server.ws_url)
+    await session.connect(system_instruction="x", voice="Kore")
+
+    try:
+        events_iter = session.events()
+
+        # One non-final event per chunk, each carrying the *running* accumulated text so far.
+        assert await _anext(events_iter) == TranscriptUpdate(text="Hello, this ", is_final=False)
+        assert await _anext(events_iter) == TranscriptUpdate(
+            text="Hello, this a connectivity ", is_final=False
+        )
+        assert await _anext(events_iter) == TranscriptUpdate(
+            text="Hello, this a connectivity test.", is_final=False
+        )
+
+        # Exactly one final event, with the full concatenated text, emitted at generationComplete
+        # (the first of the two completion signals to arrive).
+        assert await _anext(events_iter) == TranscriptUpdate(
+            text="Hello, this a connectivity test.", is_final=True
+        )
+
+        # turnComplete arriving afterwards (for the same turn) produces no second final event --
+        # the buffer was already reset.
+        with pytest.raises(TimeoutError):
+            await _anext(events_iter, timeout=0.2)
+
+        # Pure audio chunks and the empty serverContent messages never produced a transcript
+        # event; only real transcription chunks and completion signals did.
+        audio_iter = session.audio_out()
+        assert await _anext(audio_iter) == b"audio-1"
+        assert await _anext(audio_iter) == b"audio-2"
+        assert await _anext(audio_iter) == b"audio-3"
     finally:
         await session.close()
 
