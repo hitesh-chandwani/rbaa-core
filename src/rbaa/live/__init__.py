@@ -138,6 +138,21 @@ def _resolve_model(model: str | None) -> str:
     return os.environ.get("GEMINI_LIVE_MODEL", DEFAULT_GEMINI_LIVE_MODEL)
 
 
+def _model_wire_name(model: str) -> str:
+    """The real `generativelanguage.googleapis.com` BidiGenerateContent endpoint rejects the
+    `setup` message's `model` field unless it is prefixed `models/` (matching the REST API's
+    `model.name` format, e.g. `models/gemini-3.8-live`, confirmed via `GET .../v1beta/models`) --
+    a bare id like `gemini-3.8-live` gets a 1007 close with "unexpected model name format".
+    `GEMINI_LIVE_MODEL`/the constructor's `model` param keep holding the bare id (consistent with
+    how model ids are referenced elsewhere, e.g. #10's `GEMINI_TEXT_MODEL`); this prefixes only at
+    the point of building the wire payload, and does not double-prefix a caller who already passes
+    `models/...`.
+    """
+    if model.startswith("models/"):
+        return model
+    return f"models/{model}"
+
+
 class GeminiLiveSession:
     """One Gemini Live bidirectional-audio WebSocket session. See the module docstring for the
     overall architecture and the issue for the full pinned contract.
@@ -343,7 +358,7 @@ class GeminiLiveSession:
         `ToolDeclaration` docstring.
         """
         setup = types.LiveClientSetup(
-            model=self._model,
+            model=_model_wire_name(self._model),
             system_instruction=types.Content(parts=[types.Part(text=self._system_instruction)]),
             generation_config=types.GenerationConfig(
                 response_modalities=[types.Modality.AUDIO],

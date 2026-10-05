@@ -105,6 +105,21 @@ async def test_connect_sends_setup_with_system_instruction_voice_and_tools(fake_
         await session.close()
 
 
+async def test_setup_model_field_has_models_prefix(fake_server):
+    """Regression test: the real `generativelanguage.googleapis.com` BidiGenerateContent endpoint
+    rejects the `setup` message with a 1007 close ("unexpected model name format") unless `model`
+    is prefixed `models/`, matching the REST API's `model.name` format. `GEMINI_LIVE_MODEL`/the
+    constructor's `model` param keep holding the bare id; only the wire payload is prefixed."""
+    fake_server.plan_connection()
+    session = GeminiLiveSession(ws_url=fake_server.ws_url)
+
+    await session.connect(system_instruction="x", voice="Kore")
+    try:
+        assert fake_server.connections[0].setup["model"] == f"models/{DEFAULT_GEMINI_LIVE_MODEL}"
+    finally:
+        await session.close()
+
+
 async def test_connect_without_tools_sends_no_tools_field(fake_server):
     fake_server.plan_connection()
     session = GeminiLiveSession(ws_url=fake_server.ws_url)
